@@ -1,11 +1,13 @@
 "use client";
 
 import * as React from "react";
+import { motion } from "framer-motion";
 import { Sidebar } from "@/components/Sidebar";
 import { SearchBar } from "@/components/SearchBar";
 import { ResponseCard } from "@/components/ResponseCard";
 import { Button } from "@/components/ui/button";
 import type { SourceCardProps } from "@/components/SourceCard";
+import { HamburgerMenuIcon, GearIcon, ExitIcon } from "@radix-ui/react-icons";
 
 interface Message {
   id: string;
@@ -18,6 +20,7 @@ interface Message {
 export default function Home() {
   const [messages, setMessages] = React.useState<Message[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -93,47 +96,95 @@ export default function Home() {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Sidebar */}
-      <Sidebar onNewChat={handleNewChat} />
+      <Sidebar
+        onNewChat={handleNewChat}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+      />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header with Hamburger and Actions */}
+        <div className="border-b border-border/40 bg-background px-4 py-3 flex items-center justify-between">
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className="h-8 w-8"
+            >
+              <motion.div
+                animate={{ rotate: isSidebarCollapsed ? 180 : 0 }}
+                transition={{ type: "spring", stiffness: 200, damping: 20 }}
+              >
+                <HamburgerMenuIcon className="h-5 w-5" />
+              </motion.div>
+            </Button>
+          </motion.div>
+
+          <div className="flex items-center gap-2">
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button
+                variant="ghost"
+                className="h-8 gap-2 px-3"
+                onClick={() => console.log("Settings clicked")}
+              >
+                <GearIcon className="h-4 w-4" />
+                <span className="text-sm">Settings</span>
+              </Button>
+            </motion.div>
+
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button
+                variant="ghost"
+                className="h-8 gap-2 px-3"
+                onClick={() => console.log("Logout clicked")}
+              >
+                <ExitIcon className="h-4 w-4" />
+                <span className="text-sm">Logout</span>
+              </Button>
+            </motion.div>
+          </div>
+        </div>
+
         {/* Chat Area */}
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-4xl mx-auto px-6 py-8">
             {messages.length === 0 ? (
               /* Welcome Screen */
-              <div className="flex flex-col items-center justify-center min-h-[60vh]">
-                <div className="text-center mb-12 animate-fade-in">
-                  <div className="mb-6 flex justify-center">
-                    <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg">
-                      <span className="text-white font-bold text-2xl">A</span>
-                    </div>
-                  </div>
-                  <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+              <div className="flex flex-col items-center justify-center min-h-[70vh]">
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+                  className="text-center mb-16 max-w-3xl"
+                >
+                  <h1 className="text-3xl md:text-4xl font-medium mb-3 text-foreground">
                     Good afternoon, John
                   </h1>
-                  <p className="text-muted-foreground text-lg max-w-2xl">
-                    I&apos;m Diagnosis, your AI health assistant powered by the latest
-                    medical research. I&apos;m here to chat about your health
-                    concerns and guide you through treatment advice.
+                  <p className="text-muted-foreground text-base">
+                    How can I help you today?
                   </p>
-                </div>
+                </motion.div>
 
                 {/* Example Queries */}
-                <div className="w-full max-w-2xl mt-8 space-y-3 animate-slide-up">
-                  <p className="text-sm text-muted-foreground text-center">
-                    Try asking:
-                  </p>
+                <div className="w-full max-w-3xl mt-4 space-y-3">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {exampleQueries.map((query, i) => (
-                      <Button
+                      <motion.button
                         key={i}
-                        variant="outline"
-                        className="h-auto py-4 px-5 text-left justify-start hover:border-primary transition-all"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.05, duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                        whileHover={{ y: -2 }}
+                        whileTap={{ scale: 0.98 }}
                         onClick={() => handleSearch(query)}
+                        className="group h-auto py-4 px-5 text-left border border-border/60 rounded-xl hover:bg-secondary/50 transition-colors duration-200 bg-card"
                       >
-                        <span className="text-sm">{query}</span>
-                      </Button>
+                        <span className="text-sm text-foreground/90 group-hover:text-foreground">
+                          {query}
+                        </span>
+                      </motion.button>
                     ))}
                   </div>
                 </div>
@@ -142,11 +193,16 @@ export default function Home() {
               /* Messages */
               <div className="space-y-6">
                 {messages.map((message) => (
-                  <div key={message.id}>
+                  <motion.div
+                    key={message.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+                  >
                     {message.role === "user" ? (
-                      <div className="flex justify-end">
-                        <div className="bg-primary text-primary-foreground px-6 py-3 rounded-2xl max-w-[80%] shadow-sm">
-                          <p className="text-sm">{message.content}</p>
+                      <div className="flex justify-end mb-6">
+                        <div className="bg-primary text-primary-foreground px-5 py-3 rounded-2xl max-w-[80%]">
+                          <p className="text-sm leading-relaxed">{message.content}</p>
                         </div>
                       </div>
                     ) : (
@@ -155,7 +211,7 @@ export default function Home() {
                         sources={message.sources}
                       />
                     )}
-                  </div>
+                  </motion.div>
                 ))}
 
                 {isLoading && (
@@ -171,12 +227,11 @@ export default function Home() {
         </div>
 
         {/* Search Bar - Fixed at bottom */}
-        <div className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="max-w-4xl mx-auto px-6 py-4">
+        <div className="border-t border-border/40 bg-background">
+          <div className="max-w-4xl mx-auto px-6 py-5">
             <SearchBar onSearch={handleSearch} isLoading={isLoading} />
             <p className="text-xs text-muted-foreground text-center mt-3">
-              This tool provides information for educational purposes only.
-              Always consult healthcare professionals for medical advice.
+              Educational purposes only. Always consult healthcare professionals for medical advice.
             </p>
           </div>
         </div>

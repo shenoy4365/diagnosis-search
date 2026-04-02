@@ -30,34 +30,28 @@ export function SearchBar({
   return (
     <form
       onSubmit={handleSubmit}
-      className={cn("relative w-full animate-slide-up", className)}
+      className={cn("relative w-full", className)}
     >
       <div className="relative flex items-center">
-        <MagnifyingGlassIcon className="absolute left-4 h-5 w-5 text-muted-foreground" />
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={placeholder}
           disabled={isLoading}
-          className="w-full h-14 pl-12 pr-24 text-base border-2 border-border rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all duration-200 bg-background shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full h-12 px-4 pr-12 text-sm border border-border/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200 bg-card disabled:opacity-50 disabled:cursor-not-allowed"
           autoFocus
         />
         <Button
           type="submit"
           disabled={!query.trim() || isLoading}
-          className="absolute right-2 rounded-xl px-6"
+          size="icon"
+          className="absolute right-1.5 h-9 w-9 rounded-lg"
         >
           {isLoading ? (
-            <span className="flex items-center gap-2">
-              <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              Searching
-            </span>
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
           ) : (
-            <span className="flex items-center gap-2">
-              <PaperPlaneIcon className="h-4 w-4" />
-              Search
-            </span>
+            <PaperPlaneIcon className="h-4 w-4" />
           )}
         </Button>
       </div>

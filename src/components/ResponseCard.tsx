@@ -19,40 +19,35 @@ export function ResponseCard({
   className,
 }: ResponseCardProps) {
   return (
-    <div className={cn("space-y-6 animate-slide-up", className)}>
+    <div className={cn("space-y-5 animate-slide-up", className)}>
       {/* Main Response */}
-      <Card className="border-l-4 border-l-primary">
-        <CardContent className="p-6">
-          <div className="flex gap-3">
-            <div className="flex-shrink-0">
-              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white font-bold">
-                D
-              </div>
-            </div>
-            <div className="flex-1">
-              <div className="prose prose-sm max-w-none dark:prose-invert">
-                <p className="mb-0 whitespace-pre-wrap text-base leading-relaxed">
-                  {content}
-                </p>
-                {isStreaming && (
-                  <span className="inline-block w-2 h-5 ml-1 bg-primary animate-pulse rounded-sm" />
-                )}
-              </div>
+      <div className="rounded-xl border border-border/40 bg-card p-5">
+        <div className="flex gap-3">
+          <div className="flex-shrink-0">
+            <div className="h-8 w-8 rounded-md bg-primary flex items-center justify-center text-white font-semibold text-sm">
+              D
             </div>
           </div>
-        </CardContent>
-      </Card>
+          <div className="flex-1">
+            <div className="prose prose-sm max-w-none dark:prose-invert">
+              <p className="mb-0 whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">
+                {content}
+              </p>
+              {isStreaming && (
+                <span className="inline-block w-1.5 h-4 ml-1 bg-primary animate-pulse rounded-sm" />
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Sources Section */}
       {sources && sources.length > 0 && (
         <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-muted-foreground">
-              Sources & References
-            </h3>
-            <div className="h-px flex-1 bg-border" />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            Sources
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
             {sources.map((source, index) => (
               <SourceCard key={source.url} {...source} index={index} />
             ))}
@@ -61,16 +56,14 @@ export function ResponseCard({
       )}
 
       {/* Medical Disclaimer */}
-      <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900">
-        <CardContent className="p-4">
-          <p className="text-xs text-amber-800 dark:text-amber-200">
-            <strong>Medical Disclaimer:</strong> This information is for
-            educational purposes only and should not replace professional
-            medical advice. Always consult with a qualified healthcare provider
-            for medical concerns.
-          </p>
-        </CardContent>
-      </Card>
+      <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3.5">
+        <p className="text-xs text-amber-200/90 leading-relaxed">
+          <strong className="font-semibold">Medical Disclaimer:</strong> This information is for
+          educational purposes only and should not replace professional
+          medical advice. Always consult with a qualified healthcare provider
+          for medical concerns.
+        </p>
+      </div>
     </div>
   );
 }
