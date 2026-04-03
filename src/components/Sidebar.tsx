@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   ChatBubbleIcon,
-  PersonIcon,
-  FileTextIcon,
+  LightningBoltIcon,
+  ClockIcon,
   PlusIcon,
 } from "@radix-ui/react-icons";
 
@@ -19,12 +19,12 @@ interface SidebarProps {
 }
 
 export function Sidebar({ className, onNewChat, isCollapsed = false, onToggleCollapse }: SidebarProps) {
-  const [activeTab, setActiveTab] = React.useState("talk");
+  const [activeTab, setActiveTab] = React.useState("chats");
 
   const navItems = [
-    { id: "talk", label: "Talk", icon: ChatBubbleIcon },
-    { id: "physicians", label: "Physicians", icon: PersonIcon },
-    { id: "knowledge", label: "Knowledge", icon: FileTextIcon },
+    { id: "chats", label: "User Chats", icon: ChatBubbleIcon },
+    { id: "functionality", label: "Use Cases & Functionality", icon: LightningBoltIcon },
+    { id: "history", label: "History", icon: ClockIcon },
   ];
 
   return (

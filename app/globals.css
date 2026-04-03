@@ -4,25 +4,7 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 10%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 10%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 214 32% 91%;
-    --secondary-foreground: 0 0% 10%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 0 0% 45%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 0 0% 10%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 217 91% 60%;
-    --radius: 0.75rem;
-  }
-
-  .dark {
+    /* Dark theme only - forced globally */
     --background: 0 0% 7%;
     --foreground: 0 0% 98%;
     --card: 0 0% 10%;
@@ -38,6 +20,7 @@
     --border: 0 0% 20%;
     --input: 0 0% 15%;
     --ring: 217 91% 60%;
+    --radius: 0.75rem;
   }
 }
 
