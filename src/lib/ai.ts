@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import Groq from "groq-sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 /**
  * Creates and returns a Cerebras AI client
@@ -34,7 +35,20 @@ export function getGroqClient(): Groq {
 }
 
 /**
- * Creates and returns an OpenAI client
+ * Creates and returns a Google Gemini AI client
+ * @returns GoogleGenerativeAI client
+ * @throws Error if GEMINI_API_KEY is not set
+ */
+export function getGeminiClient(): GoogleGenerativeAI {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY is not set");
+  }
+
+  return new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+}
+
+/**
+ * Creates and returns an OpenAI client (kept for compatibility)
  * @returns OpenAI SDK client
  * @throws Error if OPENAI_API_KEY is not set
  */

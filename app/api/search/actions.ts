@@ -2,16 +2,13 @@
 
 // Import required dependencies
 import axios from "axios";
-import { getCerebrasClient, getGroqClient, getOpenAIClient } from "@/lib/ai";
+import { getCerebrasClient, getGroqClient, getGeminiClient } from "@/lib/ai";
 import { ChatCompletion } from "openai/resources/index.mjs";
 import {
   FollowUpSearchQueriesResponse,
   SearchResponse,
   StreamedFinalAnswerRequest,
-  ZFollowUpSearchQueriesResponse,
-  ZSearchResponse,
 } from "./schemas";
-import { zodResponseFormat } from "openai/helpers/zod.mjs";
 import { NodeHtmlMarkdown } from "node-html-markdown";
 import OpenAI from "openai";
 
@@ -62,15 +59,20 @@ export async function optimizeRawSearchQuery(
     }
     console.error(error);
 
-    // Fallback to OpenAI if Cerebras fails
-    const openaiClient = getOpenAIClient();
-    const response = await openaiClient.beta.chat.completions.parse({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: query }],
-      response_format: zodResponseFormat(ZSearchResponse, "search_response"),
+    // Fallback to Gemini if Cerebras fails
+    const geminiClient = getGeminiClient();
+    const model = geminiClient.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: { responseMimeType: "application/json" }
     });
 
-    return response.choices[0].message.parsed;
+    const prompt = `Given a user search query, return the most optimized Google or Bing search queries for this. Your response should be a JSON object with the following schema: {queries: string[]}. You should return ${numQueries} queries.\n\nQuery: ${query}`;
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    const searchResponse = JSON.parse(text) as SearchResponse;
+    searchResponse.queries = searchResponse.queries.map((q) => q.trim());
+    return searchResponse;
   }
 }
 
@@ -187,15 +189,16 @@ export async function detailedWebsiteSummary(
 
           return response.choices[0].message.content || "";
         } catch (error) {
-          // Fallback to OpenAI for chunk processing
-          console.warn(`Chunk ${idx} failed, falling back to OpenAI:`, error);
-          const openaiClient = getOpenAIClient();
-          const response = await openaiClient.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [systemMessage(), { role: "user", content: chunk }],
-            max_tokens: maxChunkTokens,
+          // Fallback to Gemini for chunk processing
+          console.warn(`Chunk ${idx} failed, falling back to Gemini:`, error);
+          const geminiClient = getGeminiClient();
+          const model = geminiClient.getGenerativeModel({
+            model: "gemini-1.5-flash",
           });
-          return response.choices[0].message.content || "";
+
+          const prompt = `${systemMessage().content}\n\n${chunk}`;
+          const result = await model.generateContent(prompt);
+          return result.response.text() || "";
         }
       })
     );
@@ -222,30 +225,17 @@ export async function detailedWebsiteSummary(
         null
       );
     } catch (error) {
-      // Fallback to OpenAI for final summary
-      console.warn("Final summary failed, falling back to OpenAI:", error);
-      const openaiClient = getOpenAIClient();
-
-      const response = await openaiClient.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: `You are writing a detailed response to the query: "${query}". Analyze the provided text segments, synthesize key information, and present a comprehensive response. Include specific details and examples. Write clearly for a general audience. Use Markdown format.`,
-          },
-          { role: "user", content: chunkSummaries.join("\n\n") },
-        ],
-        max_tokens: maxTotalTokens,
-        stream: true,
+      // Fallback to Gemini for final summary
+      console.warn("Final summary failed, falling back to Gemini:", error);
+      const geminiClient = getGeminiClient();
+      const model = geminiClient.getGenerativeModel({
+        model: "gemini-1.5-flash",
       });
 
-      // Collect streamed response
-      let content = "";
-      for await (const chunk of response) {
-        content += chunk.choices[0].delta.content || "";
-      }
+      const prompt = `You are writing a detailed response to the query: "${query}". Analyze the provided text segments, synthesize key information, and present a comprehensive response. Include specific details and examples. Write clearly for a general audience. Use Markdown format.\n\n${chunkSummaries.join("\n\n")}`;
 
-      return content || null;
+      const result = await model.generateContent(prompt);
+      return result.response.text() || null;
     }
   } catch (error) {
     console.error("Error in detailedWebsiteSummary:", error);
@@ -256,7 +246,7 @@ export async function detailedWebsiteSummary(
 /**
  * Streams a final answer based on provided sources
  * - Handles both text and image sources
- * - Uses OpenAI's gpt-4o-mini
+ * - Uses Google Gemini
  * - Implements strict citation and formatting guidelines
  * - Returns streamed response for real-time updates
  * @param streamedFinalAnswerRequest Request containing query and sources
@@ -284,14 +274,8 @@ export async function* getStreamedFinalAnswer(
     )
     .join("\n\n");
 
-  // Create and stream OpenAI response
-  const openaiClient = getOpenAIClient();
-  const stream = await openaiClient.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      {
-        role: "system",
-        content: `
+  // Create system prompt
+  const systemPrompt = `
 You are a highly knowledgeable and helpful assistant that provides detailed answers formatted in Markdown. Your responses should be clear, well-structured, and easy to read, utilizing headings, subheadings, lists, tables, and other Markdown features as appropriate.
 
 **Guidelines:**
@@ -339,22 +323,29 @@ You are a highly knowledgeable and helpful assistant that provides detailed answ
 ![Image Title](https://image-url.com)
 
 If you encounter a question beyond the scope of the provided sources, respond appropriately as per the guidelines above.
-      `,
-      },
-      {
-        role: "user",
-        content: `Question: ${query}${
-          sourceContext ? `\n\nSources:\n${sourceContext}` : ""
-        }${imageSourceContext ? `\n\nImages:\n${imageSourceContext}` : ""}`,
-      },
-    ],
-    stream: true,
+`;
+
+  const userPrompt = `Question: ${query}${
+    sourceContext ? `\n\nSources:\n${sourceContext}` : ""
+  }${imageSourceContext ? `\n\nImages:\n${imageSourceContext}` : ""}`;
+
+  const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
+
+  // Create and stream Gemini response
+  const geminiClient = getGeminiClient();
+  const model = geminiClient.getGenerativeModel({
+    model: "gemini-1.5-flash",
   });
+
+  const result = await model.generateContentStream(fullPrompt);
 
   // Stream response chunks
   try {
-    for await (const chunk of stream) {
-      yield chunk.choices[0].delta.content;
+    for await (const chunk of result.stream) {
+      const text = chunk.text();
+      if (text) {
+        yield text;
+      }
     }
   } catch (error) {
     console.error("Stream error:", error);
@@ -365,7 +356,7 @@ If you encounter a question beyond the scope of the provided sources, respond ap
 /**
  * Generates follow-up search queries based on previous results
  * Primary: Uses Groq API with llama-3.3-70b-versatile
- * Fallback: OpenAI with gpt-4o-mini
+ * Fallback: Google Gemini
  * @param enhancedQueries Array of previously enhanced queries
  * @param previousModelResponse Previous model's response text
  * @param numQueries Number of follow-up queries to generate (default: 5)
@@ -401,30 +392,19 @@ export async function generateFollowUpSearchQueries(
     ) as FollowUpSearchQueriesResponse;
     return followUpSearchQueriesResponse;
   } catch (error) {
-    // Fallback to OpenAI if Groq fails
+    // Fallback to Gemini if Groq fails
     console.error("Error in generateFollowUpSearchQueries:", error);
 
-    const openaiClient = getOpenAIClient();
-    const response = await openaiClient.beta.chat.completions.parse({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: `You are a helpful assistant that generates follow-up search queries based on a list of enhanced queries and a previous model response. Your response should be a JSON object with the following schema: {queries: string[]}. You should return ${numQueries} queries.`,
-        },
-        {
-          role: "user",
-          content: `Enhanced Queries:\n${enhancedQueries.join(
-            "\n"
-          )}\n\nPrevious Model Response:\n${previousModelResponse}`,
-        },
-      ],
-      response_format: zodResponseFormat(
-        ZFollowUpSearchQueriesResponse,
-        "follow_up_search_queries_response"
-      ),
+    const geminiClient = getGeminiClient();
+    const model = geminiClient.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      generationConfig: { responseMimeType: "application/json" }
     });
 
-    return response.choices[0].message.parsed;
+    const prompt = `You are a helpful assistant that generates follow-up search queries based on a list of enhanced queries and a previous model response. Your response should be a JSON object with the following schema: {queries: string[]}. You should return ${numQueries} queries.\n\nEnhanced Queries:\n${enhancedQueries.join("\n")}\n\nPrevious Model Response:\n${previousModelResponse}`;
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+    return JSON.parse(text) as FollowUpSearchQueriesResponse;
   }
 }
