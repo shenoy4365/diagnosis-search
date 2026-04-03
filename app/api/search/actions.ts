@@ -3,14 +3,12 @@
 // Import required dependencies
 import axios from "axios";
 import { getCerebrasClient, getGroqClient, getGeminiClient } from "@/lib/ai";
-import { ChatCompletion } from "openai/resources/index.mjs";
 import {
   FollowUpSearchQueriesResponse,
   SearchResponse,
   StreamedFinalAnswerRequest,
 } from "./schemas";
 import { NodeHtmlMarkdown } from "node-html-markdown";
-import OpenAI from "openai";
 
 /**
  * Optimizes a raw search query into multiple refined search queries
@@ -46,7 +44,7 @@ export async function optimizeRawSearchQuery(
 
     // Parse and clean up response
     const searchResponse = JSON.parse(
-      (response.choices as ChatCompletion.Choice[])[0].message.content!
+      response.choices[0].message.content!
     ) as SearchResponse;
     searchResponse.queries = searchResponse.queries.map((query) =>
       query.trim()
@@ -179,9 +177,7 @@ export async function detailedWebsiteSummary(
           const client = getCerebrasClient();
           const model = Math.random() < 0.5 ? "llama-3.3-70b" : "llama-3.1-70b";
 
-          const response = await (
-            client as unknown as OpenAI
-          ).chat.completions.create({
+          const response = await client.chat.completions.create({
             model,
             messages: [systemMessage(), { role: "user", content: chunk }],
             max_tokens: maxChunkTokens,
@@ -220,10 +216,7 @@ export async function detailedWebsiteSummary(
         max_tokens: maxTotalTokens,
       });
 
-      return (
-        (finalResponse.choices as ChatCompletion.Choice[])[0].message.content ||
-        null
-      );
+      return finalResponse.choices[0].message.content || null;
     } catch (error) {
       // Fallback to Gemini for final summary
       console.warn("Final summary failed, falling back to Gemini:", error);

@@ -1,21 +1,20 @@
-import OpenAI from "openai";
 import Groq from "groq-sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 /**
- * Creates and returns a Cerebras AI client
- * Uses OpenAI SDK with Cerebras base URL
- * @returns OpenAI client configured for Cerebras API
+ * Creates and returns a Cerebras AI client using Groq SDK
+ * Cerebras uses OpenAI-compatible API
+ * @returns Groq client configured for Cerebras API
  * @throws Error if CEREBRAS_API_KEY is not set
  */
-export function getCerebrasClient(): OpenAI {
+export function getCerebrasClient(): Groq {
   if (!process.env.CEREBRAS_API_KEY) {
     throw new Error("CEREBRAS_API_KEY is not set");
   }
 
-  return new OpenAI({
-    baseURL: "https://api.cerebras.ai/v1",
+  return new Groq({
     apiKey: process.env.CEREBRAS_API_KEY,
+    baseURL: "https://api.cerebras.ai/v1",
   });
 }
 
@@ -45,19 +44,4 @@ export function getGeminiClient(): GoogleGenerativeAI {
   }
 
   return new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-}
-
-/**
- * Creates and returns an OpenAI client (kept for compatibility)
- * @returns OpenAI SDK client
- * @throws Error if OPENAI_API_KEY is not set
- */
-export function getOpenAIClient(): OpenAI {
-  if (!process.env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not set");
-  }
-
-  return new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-  });
 }

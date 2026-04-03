@@ -2,7 +2,6 @@
 
 import { getCerebrasClient, getGroqClient, getGeminiClient } from "@/lib/ai";
 import { SearchResponse } from "../search/schemas";
-import { ChatCompletion } from "openai/resources/index.mjs";
 
 /**
  * Optimizes a raw image search query into multiple refined search queries
@@ -38,7 +37,7 @@ export async function optimizeRawImageSearchQuery(
 
     // Parse and clean up response
     const searchResponse = JSON.parse(
-      (response.choices as ChatCompletion.Choice[])[0].message.content!
+      response.choices[0].message.content!
     ) as SearchResponse;
     searchResponse.queries = searchResponse.queries.map((query) =>
       query.trim()
