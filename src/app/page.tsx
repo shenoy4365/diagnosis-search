@@ -5,9 +5,12 @@ import { motion } from "framer-motion";
 import { Sidebar } from "@/components/Sidebar";
 import { SearchBar } from "@/components/SearchBar";
 import { ResponseCard } from "@/components/ResponseCard";
+import { SettingsModal } from "@/components/SettingsModal";
+import { AuthModal } from "@/components/AuthModal";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
 import type { SourceCardProps } from "@/components/SourceCard";
-import { HamburgerMenuIcon, GearIcon, ExitIcon } from "@radix-ui/react-icons";
+import { HamburgerMenuIcon, GearIcon, ExitIcon, PersonIcon } from "@radix-ui/react-icons";
 
 interface Message {
   id: string;
@@ -18,9 +21,12 @@ interface Message {
 }
 
 export default function Home() {
+  const { user, signOut } = useAuth();
   const [messages, setMessages] = React.useState<Message[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false);
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -32,6 +38,12 @@ export default function Home() {
   }, [messages]);
 
   const handleSearch = async (query: string) => {
+    // Check if user is authenticated
+    if (!user) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
@@ -123,27 +135,42 @@ export default function Home() {
           </motion.div>
 
           <div className="flex items-center gap-2">
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button
-                variant="ghost"
-                className="h-8 gap-2 px-3"
-                onClick={() => console.log("Settings clicked")}
-              >
-                <GearIcon className="h-4 w-4" />
-                <span className="text-sm">Settings</span>
-              </Button>
-            </motion.div>
+            {user ? (
+              <>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Button
+                    variant="ghost"
+                    className="h-8 gap-2 px-3"
+                    onClick={() => setIsSettingsOpen(true)}
+                  >
+                    <GearIcon className="h-4 w-4" />
+                    <span className="text-sm">Settings</span>
+                  </Button>
+                </motion.div>
 
-            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-              <Button
-                variant="ghost"
-                className="h-8 gap-2 px-3"
-                onClick={() => console.log("Logout clicked")}
-              >
-                <ExitIcon className="h-4 w-4" />
-                <span className="text-sm">Logout</span>
-              </Button>
-            </motion.div>
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                  <Button
+                    variant="ghost"
+                    className="h-8 gap-2 px-3"
+                    onClick={signOut}
+                  >
+                    <ExitIcon className="h-4 w-4" />
+                    <span className="text-sm">Logout</span>
+                  </Button>
+                </motion.div>
+              </>
+            ) : (
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button
+                  variant="default"
+                  className="h-8 gap-2 px-3"
+                  onClick={() => setIsAuthModalOpen(true)}
+                >
+                  <PersonIcon className="h-4 w-4" />
+                  <span className="text-sm">Sign in</span>
+                </Button>
+              </motion.div>
+            )}
           </div>
         </div>
 
@@ -160,10 +187,14 @@ export default function Home() {
                   className="text-center mb-16 max-w-3xl"
                 >
                   <h1 className="text-3xl md:text-4xl font-medium mb-3 text-foreground">
-                    Good afternoon, John
+                    {user
+                      ? `Good afternoon${user.user_metadata?.full_name ? `, ${user.user_metadata.full_name}` : ""}`
+                      : "Welcome to Diagnosis AI"}
                   </h1>
                   <p className="text-muted-foreground text-base">
-                    How can I help you today?
+                    {user
+                      ? "How can I help you today?"
+                      : "AI-powered healthcare search. Sign in to get started."}
                   </p>
                 </motion.div>
 
@@ -236,6 +267,18 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+      />
     </div>
   );
 }
