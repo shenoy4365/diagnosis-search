@@ -54,44 +54,98 @@ export default function Home() {
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
 
-    // Simulate AI response (will be replaced with actual API calls later)
-    setTimeout(() => {
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: `I understand you're asking about "${query}". This is a demo response showing how the interface will work. In the next phases, this will be replaced with real AI-powered responses from Cerebras and Groq APIs, along with web scraping for accurate medical information.`,
-        sources: [
-          {
-            title: "Mayo Clinic - Comprehensive Health Information",
-            url: "https://www.mayoclinic.org",
-            snippet:
-              "Trusted medical information and expert health advice from Mayo Clinic.",
-            domain: "mayoclinic.org",
-            credibilityScore: 95,
-          },
-          {
-            title: "PubMed Central - Medical Research Database",
-            url: "https://www.ncbi.nlm.nih.gov/pmc/",
-            snippet:
-              "Free archive of biomedical and life sciences journal literature.",
-            domain: "ncbi.nlm.nih.gov",
-            credibilityScore: 98,
-          },
-          {
-            title: "CDC - Centers for Disease Control",
-            url: "https://www.cdc.gov",
-            snippet:
-              "Official health information and guidelines from the CDC.",
-            domain: "cdc.gov",
-            credibilityScore: 97,
-          },
-        ],
-        timestamp: new Date(),
-      };
+    // Create temporary AI message for streaming
+    const aiMessageId = (Date.now() + 1).toString();
+    const tempAiMessage: Message = {
+      id: aiMessageId,
+      role: "assistant",
+      content: "",
+      timestamp: new Date(),
+    };
 
-      setMessages((prev) => [...prev, aiMessage]);
+    setMessages((prev) => [...prev, tempAiMessage]);
+
+    try {
+      const response = await fetch("/api/search", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query,
+          conversationHistory: messages.map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch response");
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error("No response body");
+      }
+
+      let accumulatedContent = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        accumulatedContent += chunk;
+
+        // Update the message content with accumulated text
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === aiMessageId
+              ? { ...m, content: accumulatedContent }
+              : m
+          )
+        );
+      }
+
+      // After streaming is complete, add sources
+      // TODO: Extract actual sources from the response in the future
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === aiMessageId
+            ? {
+                ...m,
+                sources: [
+                  {
+                    title: "Medical Research",
+                    url: "https://www.ncbi.nlm.nih.gov",
+                    snippet: "Evidence-based medical information",
+                    domain: "ncbi.nlm.nih.gov",
+                    credibilityScore: 98,
+                  },
+                ],
+              }
+            : m
+        )
+      );
+    } catch (error) {
+      console.error("Search error:", error);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === aiMessageId
+            ? {
+                ...m,
+                content:
+                  "Sorry, I encountered an error processing your request. Please try again.",
+              }
+            : m
+        )
+      );
+    } finally {
       setIsLoading(false);
-    }, 1500);
+    }
   };
 
   const handleNewChat = () => {

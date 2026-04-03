@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Cross2Icon } from "@radix-ui/react-icons";
+import { supabase } from "@/lib/supabase";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -13,12 +14,15 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
-  const { user, resetPassword } = useAuth();
+  const { user } = useAuth();
   const [fullName, setFullName] = React.useState(
     user?.user_metadata?.full_name || ""
   );
-  const [email, setEmail] = React.useState(user?.email || "");
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [currentPassword, setCurrentPassword] = React.useState("");
+  const [newPassword, setNewPassword] = React.useState("");
+  const [confirmPassword, setConfirmPassword] = React.useState("");
+  const [isLoadingName, setIsLoadingName] = React.useState(false);
+  const [isLoadingPassword, setIsLoadingPassword] = React.useState(false);
   const [message, setMessage] = React.useState<{
     type: "success" | "error";
     text: string;
@@ -27,30 +31,82 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   React.useEffect(() => {
     if (user) {
       setFullName(user.user_metadata?.full_name || "");
-      setEmail(user.email || "");
     }
   }, [user]);
 
-  const handleResetPassword = async () => {
-    if (!email) return;
+  const handleUpdateName = async () => {
+    if (!fullName.trim()) {
+      setMessage({ type: "error", text: "Name cannot be empty" });
+      return;
+    }
 
-    setIsLoading(true);
+    setIsLoadingName(true);
     setMessage(null);
 
     try {
-      const { error } = await resetPassword(email);
+      const { error } = await supabase.auth.updateUser({
+        data: { full_name: fullName },
+      });
+
       if (error) {
         setMessage({ type: "error", text: error.message });
       } else {
-        setMessage({
-          type: "success",
-          text: "Password reset email sent! Check your inbox.",
-        });
+        setMessage({ type: "success", text: "Name updated successfully!" });
       }
     } catch (err) {
-      setMessage({ type: "error", text: "Failed to send reset email" });
+      setMessage({ type: "error", text: "Failed to update name" });
     } finally {
-      setIsLoading(false);
+      setIsLoadingName(false);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage(null);
+
+    // Validation
+    if (newPassword.length < 6) {
+      setMessage({ type: "error", text: "Password must be at least 6 characters" });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setMessage({ type: "error", text: "Passwords do not match" });
+      return;
+    }
+
+    setIsLoadingPassword(true);
+
+    try {
+      // First verify current password by attempting to sign in
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user?.email || "",
+        password: currentPassword,
+      });
+
+      if (signInError) {
+        setMessage({ type: "error", text: "Current password is incorrect" });
+        setIsLoadingPassword(false);
+        return;
+      }
+
+      // Update password
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) {
+        setMessage({ type: "error", text: error.message });
+      } else {
+        setMessage({ type: "success", text: "Password updated successfully!" });
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      }
+    } catch (err) {
+      setMessage({ type: "error", text: "Failed to update password" });
+    } finally {
+      setIsLoadingPassword(false);
     }
   };
 
@@ -80,7 +136,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-foreground">
-                  Settings
+                  User Settings
                 </h2>
                 <Button
                   variant="ghost"
@@ -104,23 +160,28 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       <label className="block text-xs text-muted-foreground mb-1.5">
                         Full Name
                       </label>
-                      <Input
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        disabled
-                        className="h-10 bg-secondary/50"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Contact support to update your name
-                      </p>
+                      <div className="flex gap-2">
+                        <Input
+                          value={fullName}
+                          onChange={(e) => setFullName(e.target.value)}
+                          disabled={isLoadingName}
+                          className="h-10"
+                        />
+                        <Button
+                          onClick={handleUpdateName}
+                          disabled={isLoadingName}
+                          className="h-10"
+                        >
+                          {isLoadingName ? "Saving..." : "Save"}
+                        </Button>
+                      </div>
                     </div>
                     <div>
                       <label className="block text-xs text-muted-foreground mb-1.5">
                         Email
                       </label>
                       <Input
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        value={user?.email || ""}
                         disabled
                         className="h-10 bg-secondary/50"
                       />
@@ -134,16 +195,56 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 {/* Password Section */}
                 <div>
                   <h3 className="text-sm font-medium text-foreground mb-3">
-                    Password
+                    Change Password
                   </h3>
-                  <Button
-                    onClick={handleResetPassword}
-                    disabled={isLoading}
-                    variant="outline"
-                    className="w-full h-10"
-                  >
-                    {isLoading ? "Sending..." : "Send Password Reset Email"}
-                  </Button>
+                  <form onSubmit={handleChangePassword} className="space-y-3">
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1.5">
+                        Current Password
+                      </label>
+                      <Input
+                        type="password"
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="••••••••"
+                        disabled={isLoadingPassword}
+                        className="h-10"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1.5">
+                        New Password
+                      </label>
+                      <Input
+                        type="password"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="••••••••"
+                        disabled={isLoadingPassword}
+                        className="h-10"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-muted-foreground mb-1.5">
+                        Confirm New Password
+                      </label>
+                      <Input
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="••••••••"
+                        disabled={isLoadingPassword}
+                        className="h-10"
+                      />
+                    </div>
+                    <Button
+                      type="submit"
+                      disabled={isLoadingPassword || !currentPassword || !newPassword || !confirmPassword}
+                      className="w-full h-10"
+                    >
+                      {isLoadingPassword ? "Updating..." : "Update Password"}
+                    </Button>
+                  </form>
                 </div>
 
                 {/* Message */}
@@ -168,13 +269,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     </p>
                   </motion.div>
                 )}
-
-                {/* Account Info */}
-                <div className="pt-4 border-t border-border/40">
-                  <p className="text-xs text-muted-foreground">
-                    User ID: <span className="font-mono">{user?.id}</span>
-                  </p>
-                </div>
               </div>
             </div>
           </motion.div>
