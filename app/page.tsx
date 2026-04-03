@@ -3,7 +3,7 @@
 import * as React from "react";
 import { motion } from "framer-motion";
 import { Sidebar } from "@/components/Sidebar";
-import { SearchBar } from "@/components/SearchBar";
+import { SearchBar, type SearchMode } from "@/components/SearchBar";
 import { ResponseCard } from "@/components/ResponseCard";
 import { SettingsModal } from "@/components/SettingsModal";
 import { AuthModal } from "@/components/AuthModal";
@@ -37,7 +37,7 @@ export default function Home() {
     scrollToBottom();
   }, [messages]);
 
-  const handleSearch = async (query: string) => {
+  const handleSearch = async (query: string, mode: SearchMode) => {
     // Check if user is authenticated
     if (!user) {
       setIsAuthModalOpen(true);
@@ -73,6 +73,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           query,
+          mode,
           conversationHistory: messages.map((m) => ({
             role: m.role,
             content: m.content,
@@ -160,7 +161,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex flex-row h-screen w-screen overflow-hidden bg-background">
       {/* Sidebar */}
       <Sidebar
         onNewChat={handleNewChat}
@@ -169,7 +170,7 @@ export default function Home() {
       />
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden relative">
         {/* Header with Hamburger and Actions */}
         <div className="border-b border-border/40 bg-background px-4 py-3 flex items-center justify-between">
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
@@ -229,16 +230,16 @@ export default function Home() {
         </div>
 
         {/* Chat Area */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="max-w-4xl mx-auto px-6 py-8">
-            {messages.length === 0 ? (
-              /* Welcome Screen */
-              <div className="flex flex-col items-center justify-center min-h-[70vh]">
+        <div className="flex-1 overflow-y-auto flex flex-col">
+          {messages.length === 0 ? (
+            /* Welcome Screen - Full Height Centered */
+            <div className="flex-1 flex flex-col items-center justify-center px-6">
+              <div className="max-w-3xl w-full">
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-                  className="text-center mb-16 max-w-3xl"
+                  className="text-center mb-12"
                 >
                   <h1 className="text-3xl md:text-4xl font-medium mb-3 text-foreground">
                     {user
@@ -252,21 +253,26 @@ export default function Home() {
                   </p>
                 </motion.div>
 
-                {/* Example Queries */}
-                <div className="w-full max-w-3xl mt-4 space-y-3">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* Search Bar */}
+                <div className="w-full mb-6">
+                  <SearchBar onSearch={handleSearch} isLoading={isLoading} />
+                </div>
+
+                {/* Example Query Cards */}
+                <div className="w-full">
+                  <div className="grid grid-cols-2 gap-3">
                     {exampleQueries.map((query, i) => (
                       <motion.button
                         key={i}
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.05, duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-                        whileHover={{ y: -2 }}
+                        whileHover={{ scale: 1.02, y: -2 }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={() => handleSearch(query)}
-                        className="group h-auto py-4 px-5 text-left border border-border/60 rounded-xl hover:bg-secondary/50 transition-colors duration-200 bg-card"
+                        onClick={() => handleSearch(query, "healthcare")}
+                        className="group relative h-24 p-4 text-left border border-border/40 rounded-xl hover:border-border hover:bg-secondary/30 transition-all duration-200 bg-card/50 backdrop-blur-sm flex items-center justify-center"
                       >
-                        <span className="text-sm text-foreground/90 group-hover:text-foreground">
+                        <span className="text-sm text-center text-foreground/80 group-hover:text-foreground leading-snug">
                           {query}
                         </span>
                       </motion.button>
@@ -274,8 +280,10 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-            ) : (
-              /* Messages */
+            </div>
+          ) : (
+            /* Messages */
+            <div className="max-w-4xl mx-auto px-6 py-8 flex-1">
               <div className="space-y-6">
                 {messages.map((message) => (
                   <motion.div
@@ -307,19 +315,20 @@ export default function Home() {
                 )}
                 <div ref={messagesEndRef} />
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
-        {/* Search Bar - Fixed at bottom */}
-        <div className="border-t border-border/40 bg-background">
-          <div className="max-w-4xl mx-auto px-6 py-5">
-            <SearchBar onSearch={handleSearch} isLoading={isLoading} />
-            <p className="text-xs text-muted-foreground text-center mt-3">
-              Educational purposes only. Always consult healthcare professionals for medical advice.
-            </p>
+        {/* Footer Disclaimer - Fixed at bottom */}
+        {messages.length === 0 && (
+          <div className="border-t border-border/40 bg-background">
+            <div className="max-w-4xl mx-auto px-6 py-4">
+              <p className="text-xs text-muted-foreground text-center">
+                Educational purposes only. Always consult healthcare professionals for medical advice.
+              </p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Settings Modal */}

@@ -24,7 +24,7 @@ export function Sidebar({ className, onNewChat, isCollapsed = false, onToggleCol
   const navItems = [
     { id: "chats", label: "User Chats", icon: ChatBubbleIcon },
     { id: "functionality", label: "Use Cases & Functionality", icon: LightningBoltIcon },
-    { id: "history", label: "History", icon: ClockIcon },
+    { id: "history", label: "Chat History", icon: ClockIcon },
   ];
 
   return (
